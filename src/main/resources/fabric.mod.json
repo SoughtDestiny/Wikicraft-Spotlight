@@ -7,7 +7,11 @@
 	"authors": [
 		"SoughtDestiny"
 	],
-	"contact": {},
+	"contact": {
+		"homepage": "https://github.com/SoughtDestiny/Wikicraft-Spotlight",
+		"sources": "https://github.com/SoughtDestiny/Wikicraft-Spotlight",
+		"issues": "https://github.com/SoughtDestiny/Wikicraft-Spotlight/issues"
+	},
 	"license": "MIT",
 	"icon": "assets/wikicraft-spotlight/icon.png",
 	"environment": "*",
