@@ -3,7 +3,7 @@
 	"id": "wikicraft-spotlight",
 	"version": "${version}",
 	"name": "Wikicraft Spotlight",
-	"description": "A macOS Spotlight-style Minecraft Wiki search overlay with built-in browser viewer and 7 themed designs.",
+	"description": "A Spotlight-style Minecraft Wiki search overlay with built-in browser viewer and 7 themed designs.",
 	"authors": [
 		"SoughtDestiny"
 	],
