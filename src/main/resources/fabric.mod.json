@@ -1,0 +1,35 @@
+{
+	"schemaVersion": 1,
+	"id": "wikicraft-spotlight",
+	"version": "${version}",
+	"name": "Wikicraft Spotlight",
+	"description": "A macOS Spotlight-style Minecraft Wiki search overlay with built-in browser viewer and 7 themed designs.",
+	"authors": [
+		"SoughtDestiny"
+	],
+	"contact": {},
+	"license": "MIT",
+	"icon": "assets/wikicraft-spotlight/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"net.wikicraft.WikicraftSpotlight"
+		],
+		"client": [
+			"net.wikicraft.WikicraftSpotlightClient"
+		]
+	},
+	"mixins": [
+		"wikicraft-spotlight.mixins.json",
+		{
+			"config": "wikicraft-spotlight.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.18.4",
+		"minecraft": "~1.21.11",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
