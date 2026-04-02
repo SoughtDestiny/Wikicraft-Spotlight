@@ -1,33 +1,35 @@
 package net.wikicraft;
 
+import net.dimaskama.mcef.api.MCEFApi;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
-import net.minecraft.util.Identifier;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.minecraft.client.KeyMapping;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 public class WikicraftSpotlightClient implements ClientModInitializer {
 
-	public static KeyBinding openSpotlightKey;
+	public static KeyMapping openSpotlightKey;
 
-	private static final KeyBinding.Category WIKICRAFT_CATEGORY =
-			KeyBinding.Category.create(Identifier.of("wikicraft-spotlight", "general"));
+	private static final KeyMapping.Category WIKICRAFT_CATEGORY =
+			KeyMapping.Category.register(Identifier.fromNamespaceAndPath("wikicraft-spotlight", "general"));
 
 	@Override
 	public void onInitializeClient() {
+		MCEFApi.initialize();
 		SpotlightScreen.loadConfig();
-		openSpotlightKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+		openSpotlightKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
 				"key.wikicraft-spotlight.open",
-				InputUtil.Type.KEYSYM,
+				InputConstants.Type.KEYSYM,
 				GLFW.GLFW_KEY_G,
 				WIKICRAFT_CATEGORY
 		));
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
-			while (openSpotlightKey.wasPressed()) {
-				if (client.currentScreen == null) {
+			while (openSpotlightKey.consumeClick()) {
+				if (client.screen == null) {
 					if (WikiBrowserScreen.stayOpen && WikiBrowserScreen.lastUrl != null) {
 						client.setScreen(new WikiBrowserScreen(
 								WikiBrowserScreen.lastUrl,

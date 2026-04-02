@@ -2,7 +2,7 @@ package net.wikicraft;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -63,10 +63,10 @@ public class WikiSearchClient {
         HTTP.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenAccept(response -> {
                     List<SpotlightScreen.WikiResult> results = parseResponse(response.body());
-                    MinecraftClient.getInstance().execute(() -> callback.accept(results));
+                    Minecraft.getInstance().execute(() -> callback.accept(results));
                 })
                 .exceptionally(e -> {
-                    MinecraftClient.getInstance().execute(() -> callback.accept(new ArrayList<>()));
+                    Minecraft.getInstance().execute(() -> callback.accept(new ArrayList<>()));
                     return null;
                 });
     }

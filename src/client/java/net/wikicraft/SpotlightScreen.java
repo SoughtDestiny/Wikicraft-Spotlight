@@ -1,13 +1,13 @@
 package net.wikicraft;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 import java.io.IOException;
@@ -97,13 +97,13 @@ public class SpotlightScreen extends Screen {
     private static WikiSearchClient.WikiLanguage savedLanguage=WikiSearchClient.WikiLanguage.EN;
     private WikiSearchClient.WikiLanguage currentLanguage=savedLanguage;
     private boolean showLangMenu=false,showThemeMenu=false;
-    private TextFieldWidget searchField;
-    private final ButtonWidget[] resultButtons=new ButtonWidget[MAX_RES];
-    private final ButtonWidget[] langButtons=new ButtonWidget[WikiSearchClient.WikiLanguage.values().length];
-    private final ButtonWidget[] slotButtons=new ButtonWidget[3];
-    private final ButtonWidget[] slotDelButtons=new ButtonWidget[3];
-    private final ButtonWidget[] themeButtons=new ButtonWidget[Theme.values().length];
-    private ButtonWidget langPillBtn,themePillBtn;
+    private EditBox searchField;
+    private final Button[] resultButtons=new Button[MAX_RES];
+    private final Button[] langButtons=new Button[WikiSearchClient.WikiLanguage.values().length];
+    private final Button[] slotButtons=new Button[3];
+    private final Button[] slotDelButtons=new Button[3];
+    private final Button[] themeButtons=new Button[Theme.values().length];
+    private Button langPillBtn,themePillBtn;
     private String lastQuery="";
     private List<WikiResult> results=new ArrayList<>();
     private int selectedIndex=0,hoveredIndex=-1,fixedSY=-1;
@@ -113,7 +113,7 @@ public class SpotlightScreen extends Screen {
         public WikiResult(String t,String d,String u){title=t;description=d;url=u;}
     }
 
-    public SpotlightScreen(){super(Text.literal("Wikicraft"));}
+    public SpotlightScreen(){super(Component.literal("Wikicraft"));}
     private int sX(){return this.width/2-W/2;}
     private int sY(){if(fixedSY<0)fixedSY=this.height/3;return fixedSY;}
     private int slotBarY(){return sY()+INPUT_H+4;}
@@ -123,29 +123,29 @@ public class SpotlightScreen extends Screen {
 
     @Override protected void init(){
         super.init();fixedSY=-1;Theme t=currentTheme;int sx=sX(),sy=sY();
-        searchField=new TextFieldWidget(this.textRenderer,sx+28,sy+INPUT_H/2-6,W-70,12,Text.literal(""));
-        searchField.setMaxLength(120);searchField.setDrawsBackground(false);searchField.setEditableColor(t.text);searchField.setTextShadow(false);
-        searchField.setChangedListener(this::onQueryChanged);searchField.setFocused(true);
-        this.addDrawableChild(searchField);this.setFocused(searchField);
-        for(int i=0;i<MAX_RES;i++){final int idx=i;resultButtons[i]=ButtonWidget.builder(Text.literal(""),b->openAtIndex(idx)).dimensions(-3000,-3000,W-PAD*2,ROW_H).build();resultButtons[i].setAlpha(0f);this.addDrawableChild(resultButtons[i]);}
-        for(int i=0;i<3;i++){final int s=i;slotButtons[i]=ButtonWidget.builder(Text.literal(""),b->openSlot(s)).dimensions(-3000,-3000,100,SLOT_H).build();slotButtons[i].setAlpha(0f);this.addDrawableChild(slotButtons[i]);
-            slotDelButtons[i]=ButtonWidget.builder(Text.literal(""),b->{WikiBrowserScreen.pinnedUrls[s]=null;WikiBrowserScreen.pinnedTitles[s]=null;}).dimensions(-3000,-3000,14,14).build();slotDelButtons[i].setAlpha(0f);this.addDrawableChild(slotDelButtons[i]);}
-        langPillBtn=ButtonWidget.builder(Text.literal(""),b->{showLangMenu=!showLangMenu;showThemeMenu=false;refocusSearch();}).dimensions(-3000,-3000,34,20).build();langPillBtn.setAlpha(0f);this.addDrawableChild(langPillBtn);
+        searchField=new EditBox(this.font,sx+28,sy+INPUT_H/2-6,W-70,12,Component.literal(""));
+        searchField.setMaxLength(120);searchField.setBordered(false);searchField.setTextColor(t.text);searchField.setTextShadow(false);
+        searchField.setResponder(this::onQueryChanged);searchField.setFocused(true);
+        this.addRenderableWidget(searchField);this.setFocused(searchField);
+        for(int i=0;i<MAX_RES;i++){final int idx=i;resultButtons[i]=Button.builder(Component.literal(""),b->openAtIndex(idx)).bounds(-3000,-3000,W-PAD*2,ROW_H).build();resultButtons[i].setAlpha(0f);this.addRenderableWidget(resultButtons[i]);}
+        for(int i=0;i<3;i++){final int s=i;slotButtons[i]=Button.builder(Component.literal(""),b->openSlot(s)).bounds(-3000,-3000,100,SLOT_H).build();slotButtons[i].setAlpha(0f);this.addRenderableWidget(slotButtons[i]);
+            slotDelButtons[i]=Button.builder(Component.literal(""),b->{WikiBrowserScreen.pinnedUrls[s]=null;WikiBrowserScreen.pinnedTitles[s]=null;}).bounds(-3000,-3000,14,14).build();slotDelButtons[i].setAlpha(0f);this.addRenderableWidget(slotDelButtons[i]);}
+        langPillBtn=Button.builder(Component.literal(""),b->{showLangMenu=!showLangMenu;showThemeMenu=false;refocusSearch();}).bounds(-3000,-3000,34,20).build();langPillBtn.setAlpha(0f);this.addRenderableWidget(langPillBtn);
         var langs=WikiSearchClient.WikiLanguage.values();
-        for(int i=0;i<langs.length;i++){final var lang=langs[i];langButtons[i]=ButtonWidget.builder(Text.literal(""),b->{currentLanguage=lang;savedLanguage=lang;showLangMenu=false;lastQuery="";saveConfig();onQueryChanged(searchField.getText());refocusSearch();}).dimensions(-3000,-3000,150,22).build();langButtons[i].setAlpha(0f);this.addDrawableChild(langButtons[i]);}
-        themePillBtn=ButtonWidget.builder(Text.literal(""),b->{showThemeMenu=!showThemeMenu;showLangMenu=false;refocusSearch();}).dimensions(-3000,-3000,50,18).build();themePillBtn.setAlpha(0f);this.addDrawableChild(themePillBtn);
+        for(int i=0;i<langs.length;i++){final var lang=langs[i];langButtons[i]=Button.builder(Component.literal(""),b->{currentLanguage=lang;savedLanguage=lang;showLangMenu=false;lastQuery="";saveConfig();onQueryChanged(searchField.getValue());refocusSearch();}).bounds(-3000,-3000,150,22).build();langButtons[i].setAlpha(0f);this.addRenderableWidget(langButtons[i]);}
+        themePillBtn=Button.builder(Component.literal(""),b->{showThemeMenu=!showThemeMenu;showLangMenu=false;refocusSearch();}).bounds(-3000,-3000,50,18).build();themePillBtn.setAlpha(0f);this.addRenderableWidget(themePillBtn);
         var themes=Theme.values();
-        for(int i=0;i<themes.length;i++){final var theme=themes[i];themeButtons[i]=ButtonWidget.builder(Text.literal(""),b->{currentTheme=theme;showThemeMenu=false;searchField.setEditableColor(currentTheme.text);searchField.setTextShadow(false);saveConfig();refocusSearch();}).dimensions(-3000,-3000,120,22).build();themeButtons[i].setAlpha(0f);this.addDrawableChild(themeButtons[i]);}
+        for(int i=0;i<themes.length;i++){final var theme=themes[i];themeButtons[i]=Button.builder(Component.literal(""),b->{currentTheme=theme;showThemeMenu=false;searchField.setTextColor(currentTheme.text);searchField.setTextShadow(false);saveConfig();refocusSearch();}).bounds(-3000,-3000,120,22).build();themeButtons[i].setAlpha(0f);this.addRenderableWidget(themeButtons[i]);}
     }
 
     private String getPlaceholder(){return switch(currentLanguage){case DE->"Im Minecraft Wiki suchen...";case FR->"Rechercher dans le Wiki...";case ES->"Buscar en la Wiki...";default->"Search Minecraft Wiki...";};}
     private void refocusSearch(){this.setFocused(searchField);searchField.setFocused(true);}
-    private void openSlot(int s){String u=WikiBrowserScreen.pinnedUrls[s],t=WikiBrowserScreen.pinnedTitles[s];if(u!=null)MinecraftClient.getInstance().setScreen(new WikiBrowserScreen(u,t,this));}
+    private void openSlot(int s){String u=WikiBrowserScreen.pinnedUrls[s],t=WikiBrowserScreen.pinnedTitles[s];if(u!=null)Minecraft.getInstance().setScreen(new WikiBrowserScreen(u,t,this));}
     private void onQueryChanged(String q){if(q.equals(lastQuery))return;lastQuery=q;if(!q.isBlank())WikiSearchClient.search(q,currentLanguage,f->{results=f;if(selectedIndex>=results.size())selectedIndex=0;});else{results=new ArrayList<>();selectedIndex=0;}}
-    private void openAtIndex(int i){if(results.isEmpty())return;i=Math.max(0,Math.min(i,results.size()-1));var r=results.get(i);MinecraftClient.getInstance().setScreen(new WikiBrowserScreen(r.url,r.title,this));}
+    private void openAtIndex(int i){if(results.isEmpty())return;i=Math.max(0,Math.min(i,results.size()-1));var r=results.get(i);Minecraft.getInstance().setScreen(new WikiBrowserScreen(r.url,r.title,this));}
     private void openSelected(){openAtIndex(selectedIndex);}
 
-    @Override public void render(DrawContext ctx,int mx,int my,float dt){
+    @Override public void extractRenderState(GuiGraphicsExtractor ctx,int mx,int my,float dt){
         Theme t=currentTheme;int sx=sX(),sy=sY(),th=totalH();
         positionAll(sx,mx,my);
         ctx.fill(0,0,this.width,this.height,t.overlay);
@@ -164,16 +164,16 @@ public class SpotlightScreen extends Screen {
         int sfX=sx+PAD,sfY=sy+5,sfW=W-PAD*2,sfH=INPUT_H-10;
         drawWoodBtn(ctx,sfX,sfY,sfW,sfH,SR,t.inner,t.innerBd);
         if(isWoodTheme()||t==Theme.STONE)drawBorderRR(ctx,sfX+1,sfY+1,sfW-2,sfH-2,Math.max(SR-1,1),t.innerBd);
-        ctx.drawText(this.textRenderer,"\u2315",sfX+8,sfY+sfH/2-4,t.accentDim,false);
+        ctx.text(this.font,"\u2315",sfX+8,sfY+sfH/2-4,t.accentDim,false);
         searchField.setX(sfX+22);searchField.setY(sfY+sfH/2-6);searchField.setWidth(sfW-62);
 
-        if(searchField.getText().isEmpty())
-            ctx.drawText(this.textRenderer,getPlaceholder(),sfX+23,sfY+sfH/2-4,t.hint,false);
+        if(searchField.getValue().isEmpty())
+            ctx.text(this.font,getPlaceholder(),sfX+23,sfY+sfH/2-4,t.hint,false);
 
         int pX=sfX+sfW-38,pY=sfY+(sfH-18)/2;boolean pH=mx>=pX&&mx<pX+32&&my>=pY&&my<pY+18;
         drawWoodBtn(ctx,pX,pY,32,18,9,showLangMenu?t.pillAct:(pH?t.pillHov:t.pill),showLangMenu?t.accent:t.pillBd);
-        String lc=currentLanguage.name();int lcw=this.textRenderer.getWidth(lc);
-        ctx.drawText(this.textRenderer,lc,pX+16-lcw/2,pY+5,showLangMenu||pH?t.accent:t.sub,false);
+        String lc=currentLanguage.name();int lcw=this.font.width(lc);
+        ctx.text(this.font,lc,pX+16-lcw/2,pY+5,showLangMenu||pH?t.accent:t.sub,false);
 
         renderSlots(ctx,mx,my,sx);
         if(!results.isEmpty())ctx.fill(sx+PAD+4,resultsY()-2,sx+W-PAD-4,resultsY()-1,(t.sep&0x00FFFFFF)|0x40000000);
@@ -181,24 +181,24 @@ public class SpotlightScreen extends Screen {
         renderBottomBar(ctx,mx,my,sx);
         if(showLangMenu)renderLangMenu(ctx,mx,my,sx);
         if(showThemeMenu)renderThemeMenu(ctx,mx,my,sx);
-        super.render(ctx,mx,my,dt);
+        super.extractRenderState(ctx,mx,my,dt);
     }
 
-    private void renderSlots(DrawContext ctx,int mx,int my,int sx){
+    private void renderSlots(GuiGraphicsExtractor ctx,int mx,int my,int sx){
         Theme t=currentTheme;int barY=slotBarY(),gap=4,slotW=(W-PAD*2-gap*2)/3;
         for(int i=0;i<3;i++){boolean has=WikiBrowserScreen.pinnedUrls[i]!=null;int sX=sx+PAD+i*(slotW+gap);
             boolean hov=mx>=sX&&mx<sX+slotW&&my>=barY&&my<barY+SLOT_H;
             int bg=has?(hov?t.pillHov:t.pillFil):(hov?t.pillHov:t.pill);
             drawWoodBtn(ctx,sX,barY,slotW,SLOT_H,5,bg,t.pillBd);
             if(has){String title=WikiBrowserScreen.pinnedTitles[i];if(title==null)title="?";int mp=slotW-20;
-                if(this.textRenderer.getWidth(title)>mp){while(title.length()>3&&this.textRenderer.getWidth(title+"..")>mp)title=title.substring(0,title.length()-1);title+="..";}
-                ctx.drawText(this.textRenderer,title,sX+5,barY+SLOT_H/2-4,t.text,false);
+                if(this.font.width(title)>mp){while(title.length()>3&&this.font.width(title+"..")>mp)title=title.substring(0,title.length()-1);title+="..";}
+                ctx.text(this.font,title,sX+5,barY+SLOT_H/2-4,t.text,false);
                 int dX=sX+slotW-12;boolean dH=mx>=dX-2&&mx<dX+10&&my>=barY&&my<barY+SLOT_H;
-                ctx.drawText(this.textRenderer,"x",dX,barY+SLOT_H/2-4,dH?t.delHov:t.del,false);
-            }else{String l="Slot "+(i+1);int lw=this.textRenderer.getWidth(l);ctx.drawText(this.textRenderer,l,sX+slotW/2-lw/2,barY+SLOT_H/2-4,t.hint,false);}
+                ctx.text(this.font,"x",dX,barY+SLOT_H/2-4,dH?t.delHov:t.del,false);
+            }else{String l="Slot "+(i+1);int lw=this.font.width(l);ctx.text(this.font,l,sX+slotW/2-lw/2,barY+SLOT_H/2-4,t.hint,false);}
         }
     }
-    private void renderResults(DrawContext ctx,int mx,int my,int sx){
+    private void renderResults(GuiGraphicsExtractor ctx,int mx,int my,int sx){
         Theme t=currentTheme;hoveredIndex=-1;int count=Math.min(results.size(),MAX_RES),baseY=resultsY();
         for(int i=0;i<count;i++){var r=results.get(i);int rx=sx+PAD,ry=baseY+i*ROW_H,rw=W-PAD*2;
             boolean hov=mx>=rx&&mx<=rx+rw&&my>=ry&&my<ry+ROW_H;if(hov)hoveredIndex=i;boolean sel=(i==selectedIndex);
@@ -206,35 +206,35 @@ public class SpotlightScreen extends Screen {
             else if(hov){if(t==Theme.CHERRY)drawRR(ctx,rx,ry+1,rw,ROW_H-2,5,(t.hover&0x00FFFFFF)|0xC0000000);else drawRR(ctx,rx,ry+1,rw,ROW_H-2,5,t.hover);}
             else{int frost=t==Theme.CHERRY?0x90000000:0x50000000;drawRR(ctx,rx,ry+1,rw,ROW_H-2,5,(t.bg&0x00FFFFFF)|frost);ctx.fill(rx+PAD,ry+ROW_H-1,rx+rw-PAD,ry+ROW_H,(t.sep&0x00FFFFFF)|0x20000000);}
             boolean active=sel||hov;
-            String title=r.title;int maxTW=rw-16;if(this.textRenderer.getWidth(title)>maxTW){while(title.length()>3&&this.textRenderer.getWidth(title+"...")>maxTW)title=title.substring(0,title.length()-1);title+="...";}
-            String desc=r.description;int maxDW=rw-16;if(this.textRenderer.getWidth(desc)>maxDW){while(desc.length()>3&&this.textRenderer.getWidth(desc+"...")>maxDW)desc=desc.substring(0,desc.length()-1);desc+="...";}
-            ctx.drawText(this.textRenderer,title,rx+8,ry+4,active?t.accent:t.text,false);
-            ctx.drawText(this.textRenderer,desc,rx+8,ry+15,t.sub,false);
+            String title=r.title;int maxTW=rw-16;if(this.font.width(title)>maxTW){while(title.length()>3&&this.font.width(title+"...")>maxTW)title=title.substring(0,title.length()-1);title+="...";}
+            String desc=r.description;int maxDW=rw-16;if(this.font.width(desc)>maxDW){while(desc.length()>3&&this.font.width(desc+"...")>maxDW)desc=desc.substring(0,desc.length()-1);desc+="...";}
+            ctx.text(this.font,title,rx+8,ry+4,active?t.accent:t.text,false);
+            ctx.text(this.font,desc,rx+8,ry+15,t.sub,false);
         }
     }
-    private void renderBottomBar(DrawContext ctx,int mx,int my,int sx){
+    private void renderBottomBar(GuiGraphicsExtractor ctx,int mx,int my,int sx){
         Theme t=currentTheme;int barY=langBarY();
         ctx.fill(sx+PAD+4,barY,sx+W-PAD-4,barY+1,(t.sep&0x00FFFFFF)|0x30000000);
-        String ln=currentLanguage.displayName;int lnw=this.textRenderer.getWidth(ln);
+        String ln=currentLanguage.displayName;int lnw=this.font.width(ln);
         int lbX=sx+PAD+2,lbY=barY+4,lbW=lnw+12,lbH=16;
         boolean lbH2=mx>=lbX&&mx<lbX+lbW&&my>=lbY&&my<lbY+lbH;
         drawWoodBtn(ctx,lbX,lbY,lbW,lbH,4,showLangMenu?t.pillAct:(lbH2?t.pillHov:t.pill),showLangMenu?t.accent:t.pillBd);
-        ctx.drawText(this.textRenderer,ln,lbX+6,lbY+4,showLangMenu||lbH2?t.accent:t.sub,false);
-        String tn=t.name;int tnw=this.textRenderer.getWidth(tn);int tbX=sx+W-PAD-tnw-16,tbY=barY+4,tbW=tnw+16,tbH=16;
+        ctx.text(this.font,ln,lbX+6,lbY+4,showLangMenu||lbH2?t.accent:t.sub,false);
+        String tn=t.name;int tnw=this.font.width(tn);int tbX=sx+W-PAD-tnw-16,tbY=barY+4,tbW=tnw+16,tbH=16;
         boolean tbH2=mx>=tbX&&mx<tbX+tbW&&my>=tbY&&my<tbY+tbH;
         drawWoodBtn(ctx,tbX,tbY,tbW,tbH,4,showThemeMenu?t.pillAct:(tbH2?t.pillHov:t.pill),showThemeMenu?t.accent:t.pillBd);
-        ctx.drawText(this.textRenderer,tn,tbX+8,tbY+4,showThemeMenu||tbH2?t.accent:t.sub,false);
+        ctx.text(this.font,tn,tbX+8,tbY+4,showThemeMenu||tbH2?t.accent:t.sub,false);
     }
-    private void renderLangMenu(DrawContext ctx,int mx,int my,int sx){
+    private void renderLangMenu(GuiGraphicsExtractor ctx,int mx,int my,int sx){
         Theme t=currentTheme;var langs=WikiSearchClient.WikiLanguage.values();int rowH=22,mW=170,mX=sx+W-PAD-mW,mY=sY()+INPUT_H+2;
         int maxV=Math.min(langs.length,(this.height-mY-10)/rowH);int mH=maxV*rowH+8;
         drawRR(ctx,mX,mY,mW,mH,SR,t.bg);drawBorderRR(ctx,mX,mY,mW,mH,SR,t.border);
         for(int i=0;i<maxV;i++){boolean sel=langs[i]==currentLanguage;int iy=mY+4+i*rowH;boolean hov=mx>=mX+3&&mx<mX+mW-3&&my>=iy&&my<iy+rowH;
             if(sel){drawRR(ctx,mX+3,iy,mW-6,rowH,4,t.selected);ctx.fill(mX+3,iy+3,mX+5,iy+rowH-3,t.accent);}
             else if(hov)drawRR(ctx,mX+3,iy,mW-6,rowH,4,t.hover);
-            ctx.drawText(this.textRenderer,langs[i].displayName,mX+12,iy+7,sel?t.accent:t.text,false);}
+            ctx.text(this.font,langs[i].displayName,mX+12,iy+7,sel?t.accent:t.text,false);}
     }
-    private void renderThemeMenu(DrawContext ctx,int mx,int my,int sx){
+    private void renderThemeMenu(GuiGraphicsExtractor ctx,int mx,int my,int sx){
         Theme t=currentTheme;Theme[] themes=Theme.values();int rowH=24,mW=130,mH=themes.length*rowH+8;
         int mX=sx+W-PAD-mW,mY=sY()+totalH()+2;if(mY+mH>this.height)mY=langBarY()-mH-2;
         drawRR(ctx,mX,mY,mW,mH,SR,t.bg);drawBorderRR(ctx,mX,mY,mW,mH,SR,t.border);
@@ -242,7 +242,7 @@ public class SpotlightScreen extends Screen {
             boolean hov=mx>=mX+3&&mx<mX+mW-3&&my>=iy&&my<iy+rowH;
             if(sel)drawRR(ctx,mX+3,iy,mW-6,rowH,4,t.selected);else if(hov)drawRR(ctx,mX+3,iy,mW-6,rowH,4,t.hover);
             drawRR(ctx,mX+8,iy+5,14,14,3,th.swatch());if(sel)drawBorderRR(ctx,mX+8,iy+5,14,14,3,t.accent);
-            ctx.drawText(this.textRenderer,th.name,mX+28,iy+8,sel?t.accent:t.text,false);}
+            ctx.text(this.font,th.name,mX+28,iy+8,sel?t.accent:t.text,false);}
     }
 
     private static Path configPath(){return net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("wikicraft-spotlight.txt");}
@@ -258,7 +258,7 @@ public class SpotlightScreen extends Screen {
         try{Files.writeString(configPath(),currentTheme.name()+"\n"+savedLanguage.name());}catch(IOException ignored){}
     }
 
-    private void drawStonePanel(DrawContext ctx,int x,int y,int w,int h){
+    private void drawStonePanel(GuiGraphicsExtractor ctx,int x,int y,int w,int h){
         int fr=4;
         drawRR(ctx,x,y,w,h,R,0xFF3A3A3E);
         drawRR(ctx,x+1,y+1,w-2,h-2,R-1,0xFF585858);
@@ -336,7 +336,7 @@ public class SpotlightScreen extends Screen {
             ctx.fill(lx+1,ly,lx+l[2]-1,ly+1,0x80FFAA33);
             ctx.fill(lx,ly+1,lx+1,ly+2,0x40FF6622);ctx.fill(lx+l[2]-1,ly+l[3]-1,lx+l[2],ly+l[3],0x40FF4411);}
     }
-    private void drawOre(DrawContext ctx,int ox,int oy,int type,boolean deep){
+    private void drawOre(GuiGraphicsExtractor ctx,int ox,int oy,int type,boolean deep){
         int bg=deep?0xFF3A3A40:0xFF686870;
         if(type==0){
             int c=0xFF2A2A2A,cl=0xFF3A3A3A,cd=0xFF1A1A1A;
@@ -376,7 +376,7 @@ public class SpotlightScreen extends Screen {
         }
     }
 
-    private void drawObsidianPanel(DrawContext ctx,int x,int y,int w,int h){
+    private void drawObsidianPanel(GuiGraphicsExtractor ctx,int x,int y,int w,int h){
         int fr=4;
         drawRR(ctx,x,y,w,h,R,0xFF02020A);
         drawRR(ctx,x+1,y+1,w-2,h-2,R-1,0xFF18082A);
@@ -436,7 +436,7 @@ public class SpotlightScreen extends Screen {
                 if(sz>=2){ctx.fill(spx,spy-1,spx+1,spy,glow);ctx.fill(spx,spy+1,spx+1,spy+2,glow);}}}
     }
 
-    private void drawPalePanel(DrawContext ctx,int x,int y,int w,int h){
+    private void drawPalePanel(GuiGraphicsExtractor ctx,int x,int y,int w,int h){
         int fr=4;
         drawRR(ctx,x,y,w,h,R,0xFF6E5840);
         drawRR(ctx,x+1,y+1,w-2,h-2,R-1,0xFF9E8A6E);
@@ -479,7 +479,7 @@ public class SpotlightScreen extends Screen {
             ctx.fill(ex+5,ey,ex+7,ey+2,0xBBDD8833);ctx.fill(ex+5,ey,ex+6,ey+1,0xDDFFAA33);}
     }
 
-    private void drawOakPanel(DrawContext ctx,int x,int y,int w,int h){
+    private void drawOakPanel(GuiGraphicsExtractor ctx,int x,int y,int w,int h){
         int fr=4;
         drawRR(ctx,x,y,w,h,R,0xFF3A2810);
         drawRR(ctx,x+1,y+1,w-2,h-2,R-1,0xFF5A4420);
@@ -518,7 +518,7 @@ public class SpotlightScreen extends Screen {
             ctx.fill(x+w*m[0]/100,y+h*m[1]/100,x+w*m[0]/100+m[2],y+h*m[1]/100+m[3],0x14508830);
     }
 
-    private void drawCherryPanel(DrawContext ctx,int x,int y,int w,int h){
+    private void drawCherryPanel(GuiGraphicsExtractor ctx,int x,int y,int w,int h){
         int fr=4;
         drawRR(ctx,x,y,w,h,R,0xFF7A3848);
         drawRR(ctx,x+1,y+1,w-2,h-2,R-1,0xFFA06878);
@@ -629,7 +629,7 @@ public class SpotlightScreen extends Screen {
         for(int[] p:petals)drawFallingPetal(ctx,x+w*p[0]/100,y+h*p[1]/100);
     }
 
-    private void drawNetherPanel(DrawContext ctx,int x,int y,int w,int h){
+    private void drawNetherPanel(GuiGraphicsExtractor ctx,int x,int y,int w,int h){
         int mortar=0xFF2C161A;
         int[] brickCols={0xFF44232B,0xFF3B1E25,0xFF301A20,0xFF51292F,0xFF3E2028,0xFF482830};
         int brickW=18,brickH=9,mortarW=2;
@@ -652,12 +652,12 @@ public class SpotlightScreen extends Screen {
         for(int[] e:embers)if(inRR(w*e[0]/100,h*e[1]/100,w,h))ctx.fill(x+w*e[0]/100,y+h*e[1]/100,x+w*e[0]/100+2,y+h*e[1]/100+2,0x70FFAA33);
     }
 
-    private void drawOceanPanel(DrawContext ctx,int x,int y,int w,int h){
+    private void drawOceanPanel(GuiGraphicsExtractor ctx,int x,int y,int w,int h){
         int fr=4;
         drawRR(ctx,x,y,w,h,R,0xFF0A1828);
         drawRR(ctx,x+1,y+1,w-2,h-2,R-1,0xFF1A3858);
         drawRR(ctx,x+2,y+2,w-4,h-4,R-1,0xFF122840);
-        for(int fy=y+1;fy<y+h-1;fy++)for(int fx=x+1;fx<x+w-1;fx+=2){
+        for(int fy=y+1;fy<y+h-1;fy+=2)for(int fx=x+1;fx<x+w-1;fx+=3){
             int fs=(int)((fx*2654435761L+fy*40503L)&0x7FFFFFFF);
             if((fs&15)<2&&inRR(fx-x,fy-y,w,h)&&!inRR(fx-x-fr,fy-y-fr,w-fr*2,h-fr*2,Math.max(R-fr,2))){
                 int c=(fs&1)==0?0xFF1E4868:0xFF143050;ctx.fill(fx,fy,fx+1,fy+1,c);}}
@@ -681,14 +681,16 @@ public class SpotlightScreen extends Screen {
                 if((hash&7)==0){ctx.fill(dx,dy,dx2,dy+1,0x0844DDAA);ctx.fill(dx,dy2-1,dx2,dy2,0x0C000000);}
             }}
         int sandY=iy+ih*82/100;
-        for(int sy2=sandY;sy2<iy+ih;sy2++)for(int sx2=ix;sx2<ix+iw;sx2+=2){
+        int[] sandPal={0xFFD4C090,0xFFC8B480,0xFFDCC898,0xFFCCBC88};
+        for(int sy2=sandY;sy2<iy+ih;sy2+=2)for(int sx2=ix;sx2<ix+iw;sx2+=4){
             int ss=(int)((sx2*2654435761L+sy2*40503L)&0x7FFFFFFF);
-            if(inRR(sx2-ix,sy2-iy,iw,ih,ir)){
-                int sc=(ss%4==0)?0xFFD4C090:(ss%4==1)?0xFFC8B480:(ss%4==2)?0xFFDCC898:0xFFCCBC88;
-                ctx.fill(sx2,sy2,sx2+2,sy2+1,sc);}}
-        for(int sx2=ix;sx2<ix+iw;sx2++){int ss=(int)((sx2*73856093L)&0x7FFFFFFF);
+            int ex=Math.min(sx2+4,ix+iw),ey=Math.min(sy2+2,iy+ih);
+            int c1x=sx2-ix,c1y=sy2-iy,c2x=ex-1-ix,c2y=ey-1-iy;
+            if(inRR(c1x,c1y,iw,ih,ir)&&inRR(c2x,c1y,iw,ih,ir)&&inRR(c1x,c2y,iw,ih,ir)&&inRR(c2x,c2y,iw,ih,ir))
+                ctx.fill(sx2,sy2,ex,ey,sandPal[ss%4]);}
+        for(int sx2=ix;sx2<ix+iw;sx2+=2){int ss=(int)((sx2*73856093L)&0x7FFFFFFF);
             int sy3=sandY-((ss&3));
-            if(inRR(sx2-ix,sy3-iy,iw,ih,ir))ctx.fill(sx2,sy3,sx2+1,sy3+1+((ss>>2)&1),(ss&4)==0?0xFFD4C090:0xFF1E4848);}
+            if(inRR(sx2-ix,sy3-iy,iw,ih,ir))ctx.fill(sx2,sy3,sx2+2,sy3+1,(ss&4)==0?0xFFD4C090:0xFF1E4848);}
         int[][] kelp={{6,98,30},{16,95,35},{30,97,25},{48,96,32},{62,95,28},{76,98,35},{88,96,22},{22,97,27},{55,95,30},{72,97,32},{42,98,26},{84,95,20}};
         for(int[] k:kelp){int kx=ix+iw*k[0]/100,ky=iy+ih*k[1]/100;int kLen=k[2];
             if(!inRR(kx-ix,ky-iy,iw,ih,ir))continue;
@@ -748,7 +750,7 @@ public class SpotlightScreen extends Screen {
             ctx.fill(tx+2,ty+1,tx+3,ty+2,0xFFFFDD44);ctx.fill(tx+tr[2]-2,ty+1,tx+tr[2]-1,ty+2,0xFFFFDD44);
             if(tr[2]>4)ctx.fill(tx+tr[2]/2,ty+2,tx+tr[2]/2+1,ty+3,0xFFFFEE66);}
     }
-    private void drawCod(DrawContext ctx,int x,int y,int d){
+    private void drawCod(GuiGraphicsExtractor ctx,int x,int y,int d){
         int b=0xDDC0A060,bd=0xBB8A7040,e=0xEE111111,f=0xAA9A7848,hi=0x40E0D0A0;
         if(d>0){
             ctx.fill(x,y+1,x+1,y+3,bd);ctx.fill(x+1,y,x+7,y+4,b);ctx.fill(x+7,y+1,x+8,y+3,b);
@@ -762,7 +764,7 @@ public class SpotlightScreen extends Screen {
             ctx.fill(x+1,y,x+2,y+1,e);ctx.fill(x+2,y+1,x+5,y+2,hi);
         }
     }
-    private void drawSalmon(DrawContext ctx,int x,int y,int d){
+    private void drawSalmon(GuiGraphicsExtractor ctx,int x,int y,int d){
         int b=0xDD8A3030,bl=0xCCCC5555,bd=0xBB6A2020,e=0xEE111111,f=0xAA882828;
         if(d>0){
             ctx.fill(x,y+1,x+1,y+2,f);ctx.fill(x+1,y,x+8,y+3,b);ctx.fill(x+3,y+1,x+6,y+2,bl);
@@ -774,7 +776,7 @@ public class SpotlightScreen extends Screen {
             ctx.fill(x+1,y,x+2,y+1,e);ctx.fill(x+6,y,x+8,y+1,bd);ctx.fill(x+6,y+2,x+8,y+3,bd);
         }
     }
-    private void drawTropicalFish(DrawContext ctx,int x,int y,int d){
+    private void drawTropicalFish(GuiGraphicsExtractor ctx,int x,int y,int d){
         int h2=(int)((x*73856093L+y*19349663L)&0x7FFFFFFF);
         int[] c1s={0xDDFF8833,0xDD33BBFF,0xDDFF33AA,0xDDFFDD33};
         int[] c2s={0xBBFFFFFF,0xBB2288DD,0xBBFF6688,0xBBAAAA33};
@@ -791,7 +793,7 @@ public class SpotlightScreen extends Screen {
             ctx.fill(x+1,y,x+2,y+1,e);ctx.fill(x+4,y,x+5,y+1,0x30FFFFFF);
         }
     }
-    private void drawPufferfish(DrawContext ctx,int x,int y){
+    private void drawPufferfish(GuiGraphicsExtractor ctx,int x,int y){
         int b=0xCCFFCC22,bd=0xAADDAA11,s=0xBB886611,e=0xDD111111;
         ctx.fill(x+1,y,x+5,y+1,b);ctx.fill(x,y+1,x+6,y+5,b);ctx.fill(x+1,y+5,x+5,y+6,b);
         ctx.fill(x+1,y+1,x+2,y+2,e);ctx.fill(x+4,y+1,x+5,y+2,e);
@@ -801,7 +803,7 @@ public class SpotlightScreen extends Screen {
         ctx.fill(x,y+6,x+1,y+7,s);ctx.fill(x+3,y+6,x+4,y+7,s);ctx.fill(x+5,y+6,x+6,y+7,s);
         ctx.fill(x+1,y+1,x+5,y+2,0x20FFEE44);
     }
-    private void drawDolphin(DrawContext ctx,int x,int y,int d){
+    private void drawDolphin(GuiGraphicsExtractor ctx,int x,int y,int d){
         int b=0xCC8899AA,bl=0xBBAABBCC,bd=0xAA667788,e=0xDD111111,belly=0xBBBBCCDD;
         if(d>0){
             ctx.fill(x+2,y+1,x+12,y+5,b);ctx.fill(x+12,y+2,x+14,y+4,b);ctx.fill(x+14,y+2,x+15,y+4,bd);
@@ -821,7 +823,7 @@ public class SpotlightScreen extends Screen {
             ctx.fill(x+5,y+2,x+11,y+3,bl);
         }
     }
-    private void drawSeaTurtle(DrawContext ctx,int x,int y,int d){
+    private void drawSeaTurtle(GuiGraphicsExtractor ctx,int x,int y,int d){
         int sh=0xCC447744,shl=0xBB558855,shd=0xAA336633,skin=0xBB55AA55,e=0xDD111111;
         if(d>0){
             ctx.fill(x+2,y+1,x+9,y+6,sh);ctx.fill(x+3,y+2,x+8,y+5,shl);ctx.fill(x+5,y+3,x+6,y+4,shd);
@@ -843,7 +845,7 @@ public class SpotlightScreen extends Screen {
             ctx.fill(x+4,y+2,x+5,y+3,shl);ctx.fill(x+6,y+4,x+7,y+5,shl);
         }
     }
-    private void drawSquid(DrawContext ctx,int x,int y){
+    private void drawSquid(GuiGraphicsExtractor ctx,int x,int y){
         int b=0xAA2A3050,bl=0x883A4060,bd=0x992A2840,e=0xBB111111;
         ctx.fill(x+1,y,x+5,y+6,b);ctx.fill(x+2,y+1,x+4,y+4,bl);
         ctx.fill(x+2,y+1,x+3,y+2,e);ctx.fill(x+3,y+1,x+4,y+2,e);
@@ -865,7 +867,7 @@ public class SpotlightScreen extends Screen {
 
     private boolean isWoodTheme(){return currentTheme==Theme.PALE||currentTheme==Theme.OAK||currentTheme==Theme.CHERRY;}
 
-    private void drawWoodBtn(DrawContext ctx,int x,int y,int w,int h,int r,int col,int bd){
+    private void drawWoodBtn(GuiGraphicsExtractor ctx,int x,int y,int w,int h,int r,int col,int bd){
         drawRR(ctx,x,y,w,h,r,col);
         Theme t=currentTheme;
         if(isWoodTheme()){
@@ -891,7 +893,7 @@ public class SpotlightScreen extends Screen {
         drawBorderRR(ctx,x,y,w,h,r,bd);
     }
 
-    private void drawBranch(DrawContext ctx,int x0,int y0,int x1,int y1,int x2,int y2,int col,int thick){
+    private void drawBranch(GuiGraphicsExtractor ctx,int x0,int y0,int x1,int y1,int x2,int y2,int col,int thick){
         int steps=60;
         for(int s=0;s<=steps;s++){float t=s/(float)steps,u=1-t;
             int nx=(int)(u*u*x0+2*u*t*x1+t*t*x2),ny=(int)(u*u*y0+2*u*t*y1+t*t*y2);
@@ -902,7 +904,7 @@ public class SpotlightScreen extends Screen {
         }
     }
 
-    private void drawBlossom(DrawContext ctx,int cx,int cy,int count){
+    private void drawBlossom(GuiGraphicsExtractor ctx,int cx,int cy,int count){
         int[][] off={{0,0},{8,-4},{-7,5},{6,7},{-5,-6},{9,3},{-8,-2},{7,-7},{-4,8},{10,-1},
                      {-6,-8},{3,9},{-9,4},{8,8},{-3,-9}};
         for(int i=0;i<Math.min(count,off.length);i++){
@@ -915,7 +917,7 @@ public class SpotlightScreen extends Screen {
         }
     }
 
-    private void drawCherry5(DrawContext ctx,int cx,int cy,int seed){
+    private void drawCherry5(GuiGraphicsExtractor ctx,int cx,int cy,int seed){
         int p=0xDDFFD0E0,pl=0xBBFFB8CC,pd=0xCCFF90AA;
         ctx.fill(cx-1,cy-4,cx+2,cy-2,p);
         ctx.fill(cx+2,cy-2,cx+5,cy+1,pl);
@@ -927,7 +929,7 @@ public class SpotlightScreen extends Screen {
         if((seed&4)!=0)ctx.fill(cx,cy-5,cx+1,cy-4,0x80FFDDEE);
     }
 
-    private void drawCherry4(DrawContext ctx,int cx,int cy,int seed){
+    private void drawCherry4(GuiGraphicsExtractor ctx,int cx,int cy,int seed){
         int p=0xCCFFCCDD,pl=0xAAFFAABB;
         ctx.fill(cx-1,cy-3,cx+2,cy-1,p);
         ctx.fill(cx+1,cy-1,cx+4,cy+2,pl);
@@ -937,12 +939,12 @@ public class SpotlightScreen extends Screen {
         if((seed&2)!=0){ctx.fill(cx+1,cy-1,cx+2,cy,0xCCFF88AA);ctx.fill(cx-1,cy+1,cx,cy+2,0xCCFF88AA);}
     }
 
-    private void drawCherryBud(DrawContext ctx,int cx,int cy){
+    private void drawCherryBud(GuiGraphicsExtractor ctx,int cx,int cy){
         ctx.fill(cx,cy,cx+2,cy+3,0xCCFF90AA);
         ctx.fill(cx,cy,cx+1,cy+1,0xDDFFCCDD);
     }
 
-    private void drawFallingPetal(DrawContext ctx,int x,int y){
+    private void drawFallingPetal(GuiGraphicsExtractor ctx,int x,int y){
         int seed=(int)((x*2654435761L+y*40503L)&0x7FFFFFFF);
         int shape=seed%4;int col=0x70FFCCDD;int cold=0x50FF99BB;
         if(shape==0){ctx.fill(x,y,x+3,y+1,col);ctx.fill(x+1,y+1,x+4,y+2,cold);}
@@ -968,7 +970,7 @@ public class SpotlightScreen extends Screen {
         int maxV=Math.min(langs.length,(this.height-mY-10)/rowH);
         for(int i=0;i<langs.length;i++){if(showLangMenu&&i<maxV){langButtons[i].setX(mX+3);langButtons[i].setY(mY+4+i*rowH);langButtons[i].setWidth(mW-6);langButtons[i].active=langButtons[i].visible=true;}
             else{langButtons[i].setX(-3000);langButtons[i].setY(-3000);langButtons[i].active=langButtons[i].visible=false;}}
-        String tn=currentTheme.name;int tnw=this.textRenderer.getWidth(tn);int tbX=sx+W-PAD-tnw-16,tbY=langBarY()+4;
+        String tn=currentTheme.name;int tnw=this.font.width(tn);int tbX=sx+W-PAD-tnw-16,tbY=langBarY()+4;
         themePillBtn.setX(tbX);themePillBtn.setY(tbY);themePillBtn.setWidth(tnw+16);themePillBtn.active=themePillBtn.visible=true;
         Theme[] themes=Theme.values();int tRowH=24,tmW=130,tmH=themes.length*tRowH+8;
         int tmX=sx+W-PAD-tmW,tmY=sY()+totalH()+2;if(tmY+tmH>this.height)tmY=langBarY()-tmH-2;
@@ -976,7 +978,7 @@ public class SpotlightScreen extends Screen {
             else{themeButtons[i].setX(-3000);themeButtons[i].setY(-3000);themeButtons[i].active=themeButtons[i].visible=false;}}
     }
 
-    @Override public boolean mouseClicked(Click click,boolean shift){
+    @Override public boolean mouseClicked(MouseButtonEvent click,boolean doubleClick){
         if(showThemeMenu){Theme[] th=Theme.values();int tR=24,tmW=130,tmH=th.length*tR+8,tmX=sX()+W-PAD-tmW,tmY=sY()+totalH()+2;
             if(tmY+tmH>this.height)tmY=langBarY()-tmH-2;if(click.x()<tmX||click.x()>tmX+tmW||click.y()<tmY||click.y()>tmY+tmH){showThemeMenu=false;return true;}}
         if(showLangMenu){var la=WikiSearchClient.WikiLanguage.values();int rH=22,mW=170,mX=sX()+W-PAD-mW,mY=sY()+INPUT_H+2;int maxV=Math.min(la.length,(this.height-mY-10)/rH);int mH=maxV*rH+8;
@@ -985,22 +987,22 @@ public class SpotlightScreen extends Screen {
             int dx=slotDelButtons[i].getX(),dy=slotDelButtons[i].getY();
             if(click.x()>=dx&&click.x()<dx+14&&click.y()>=dy&&click.y()<dy+14){
                 WikiBrowserScreen.pinnedUrls[i]=null;WikiBrowserScreen.pinnedTitles[i]=null;return true;}}}
-        return super.mouseClicked(click,shift);
+        return super.mouseClicked(click,doubleClick);
     }
-    @Override public boolean keyPressed(KeyInput ki){int k=ki.key();
-        if(k==GLFW.GLFW_KEY_ESCAPE){if(showLangMenu){showLangMenu=false;return true;}if(showThemeMenu){showThemeMenu=false;return true;}close();return true;}
+    @Override public boolean keyPressed(KeyEvent ki){int k=ki.key();
+        if(k==GLFW.GLFW_KEY_ESCAPE){if(showLangMenu){showLangMenu=false;return true;}if(showThemeMenu){showThemeMenu=false;return true;}onClose();return true;}
         if(!results.isEmpty()){if(k==GLFW.GLFW_KEY_UP){selectedIndex=Math.max(selectedIndex-1,0);return true;}
             if(k==GLFW.GLFW_KEY_DOWN){selectedIndex=Math.min(selectedIndex+1,results.size()-1);return true;}
             if(k==GLFW.GLFW_KEY_ENTER||k==GLFW.GLFW_KEY_KP_ENTER){openSelected();return true;}}
         return super.keyPressed(ki);}
 
-    private void drawRR(DrawContext ctx,int x,int y,int w,int h,int r,int col){
+    private void drawRR(GuiGraphicsExtractor ctx,int x,int y,int w,int h,int r,int col){
         if(r<=0||h<=0||w<=0){ctx.fill(x,y,x+w,y+h,col);return;}r=Math.min(r,Math.min(w/2,h/2));
         if(h>2*r)ctx.fill(x,y+r,x+w,y+h-r,col);
         for(int i=0;i<r;i++){double a=Math.acos((r-i-0.5)/r);int ins=r-(int)(Math.sin(a)*r);
             ctx.fill(x+ins,y+i,x+w-ins,y+i+1,col);ctx.fill(x+ins,y+h-i-1,x+w-ins,y+h-i,col);}
     }
-    private void drawBorderRR(DrawContext ctx,int x,int y,int w,int h,int r,int col){
+    private void drawBorderRR(GuiGraphicsExtractor ctx,int x,int y,int w,int h,int r,int col){
         if(r<=0||h<=0||w<=0)return;r=Math.min(r,Math.min(w/2,h/2));
         ctx.fill(x+r,y,x+w-r,y+1,col);ctx.fill(x+r,y+h-1,x+w-r,y+h,col);
         ctx.fill(x,y+r,x+1,y+h-r,col);ctx.fill(x+w-1,y+r,x+w,y+h-r,col);
@@ -1008,5 +1010,5 @@ public class SpotlightScreen extends Screen {
             ctx.fill(x+ins,y+i,x+ins+1,y+i+1,col);ctx.fill(x+w-ins-1,y+i,x+w-ins,y+i+1,col);
             ctx.fill(x+ins,y+h-i-1,x+ins+1,y+h-i,col);ctx.fill(x+w-ins-1,y+h-i-1,x+w-ins,y+h-i,col);}
     }
-    @Override public boolean shouldPause(){return false;}
+    @Override public boolean isPauseScreen(){return false;}
 }
